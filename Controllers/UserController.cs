@@ -12,7 +12,12 @@ namespace JWTSwagger.Controllers
     private readonly UserManager<ApplicationUser> _userManager = userManager;
 
     [HttpGet]
-    public IActionResult Get() => Ok(_userManager.Users);
+    public IActionResult Get() => Ok(_userManager.Users.Select(u => 
+      new UserDTO { 
+        Id = u.Id, 
+        Email = u.Email, 
+        UserName = u.UserName 
+      }).OrderBy(u => u.UserName));
 
     [HttpPost]
     [Route("register")]
