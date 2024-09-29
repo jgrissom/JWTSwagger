@@ -8,14 +8,37 @@ namespace JWTSwagger.Controllers
   [Produces("application/json")]
   [Route("api/[controller]")]
   [ApiController]
-  public class RoleController(RoleManager<IdentityRole> roleManager) : Controller
+  public class RoleController(RoleManager<IdentityRole> roleManager, UserManager<ApplicationUser> userManager) : Controller
   {
     private readonly RoleManager<IdentityRole> _roleManager = roleManager;
+    private readonly UserManager<ApplicationUser> _userManager = userManager;
 
     [HttpGet]
     [SwaggerOperation(summary: "Return all roles", null)]
     [SwaggerResponse(200, "Success", typeof(RoleDTO))]
     public IActionResult Get() => Ok(_roleManager.Roles.OrderBy(r => r.Name).Select(r => new RoleDTO { Id = r.Id, Name = r.Name }));
+
+    [HttpGet("{rolename}")]
+    [SwaggerOperation(summary: "Return specific role & associated users", null)]
+    [SwaggerResponse(200, "Success", typeof(RoleUsersDTO))]
+    public async Task<IActionResult> Get([FromRoute] string rolename)
+    {
+      // Check if role exists
+      var role = await _roleManager.FindByNameAsync(rolename);
+      if (role == null)
+        return NotFound(new { Message = "Role Not Found"});
+
+      // determine list of users assigned to role
+      List<string> UsersAssigned = new List<string>();
+      foreach(ApplicationUser user in _userManager.Users.ToList())
+      {
+        if (await _userManager.IsInRoleAsync(user, role.Name!))
+        {
+          UsersAssigned.Add(user.UserName!);
+        }
+      }
+      return Ok(new RoleUsersDTO { Id = role.Id, Name = role.Name , Users = UsersAssigned });
+    }
   
     [HttpPost]
     [Route("create")]
