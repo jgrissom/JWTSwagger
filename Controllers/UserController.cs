@@ -13,13 +13,14 @@ namespace JWTSwagger.Controllers
   [Produces("application/json")]
   [Route("api/[controller]")]
   [ApiController]
-  public class UserController(UserManager<ApplicationUser> userManager, IConfiguration configuration) : ControllerBase
+  public class UserController(UserManager<ApplicationUser> userManager, IConfiguration configuration, RoleManager<IdentityRole> roleManager) : ControllerBase
   {
     // access UserManager w/ dependecy injection
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly IConfiguration _configuration = configuration;
+    private readonly RoleManager<IdentityRole> _roleManager = roleManager;
 
-        [HttpGet]
+    [HttpGet]
     [SwaggerOperation(summary: "Return all users", null)]
     [SwaggerResponse(200, "Success", typeof(UserDTO))]
     public IActionResult Get() => Ok(_userManager.Users.Select(u => 
@@ -52,6 +53,29 @@ namespace JWTSwagger.Controllers
       var result = await _userManager.CreateAsync(user, model.Password!);
       if (!result.Succeeded)
         return StatusCode(StatusCodes.Status500InternalServerError);
+
+      return NoContent();
+    }
+
+    [HttpPost]
+    [SwaggerOperation(summary: "Assign user to role", null)]
+    [SwaggerResponse(204, "User assigned to role", null)]
+    [Route("assignrole")]
+    public async Task<IActionResult> AssignUserToRole([FromBody] UserRole model)
+    {
+      // check for existence of user
+      var user = await _userManager.FindByNameAsync(model.Username!);
+      if (user == null) 
+        return StatusCode(StatusCodes.Status404NotFound, new { Status = "Error", Message = "User Not Found."});
+
+      // check for existence of role
+      var role = await _roleManager.FindByNameAsync(model.RoleName!);
+      if (role == null) 
+        return StatusCode(StatusCodes.Status404NotFound, new { Status = "Error", Message = "Role Not Found."});
+
+      var result = await _userManager.AddToRoleAsync(user, model.RoleName!);
+      if (!result.Succeeded)
+        return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "Failed to assign user to role" });
 
       return NoContent();
     }
